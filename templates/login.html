@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindEase - Login</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="login-card">
+            <div class="header">
+                <div class="logo">🌿</div>
+                <h1>Welcome Back</h1>
+                <p>Log in to track your peace</p>
+            </div>
+            
+            <form id="loginForm">
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" id="username" required placeholder="Enter your username">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-primary">Login</button>
+            </form>
+            
+            <p class="footer-text">Don't have an account? <a href="/signup">Sign up</a></p>
+            <div id="message" class="message"></div>
+        </div>
+    </div>
+    <script src="/static/js/auth.js"></script>
+</body>
+</html>

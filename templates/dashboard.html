@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindEase - Dashboard</title>
+    <style>
+        :root {
+            --primary: #2D5A27;
+            --accent: #4ade80;
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        body {
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* Glowing Emerald Header */
+        .stats-header {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 30px;
+            border: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            margin-bottom: 50px;
+        }
+
+        .user-welcome h1 {
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+
+        .logout-pill {
+            background: rgba(225, 29, 72, 0.1);
+            color: #fb7185;
+            border: 1px solid rgba(225, 29, 72, 0.2);
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 15px;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+        }
+
+        .logout-pill:hover {
+            background: #e11d48;
+            color: white;
+            box-shadow: 0 0 15px rgba(225, 29, 72, 0.4);
+        }
+
+        /* Stats Grid - Two Section Layout */
+        .stats-grid {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: rgba(15, 23, 42, 0.6);
+            padding: 25px;
+            border-radius: 20px;
+            min-width: 140px;
+            text-align: center;
+            border: 1px solid var(--glass-border);
+            transition: 0.3s;
+        }
+
+        .stat-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 2.8rem;
+            font-weight: 900;
+            display: block;
+            color: var(--accent);
+            text-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            font-weight: 700;
+        }
+
+        /* Option Cards Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+        }
+
+        .option-card {
+            background: var(--card-bg);
+            padding: 40px 20px;
+            border-radius: 24px;
+            text-align: center;
+            border: 1px solid var(--glass-border);
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .option-card:hover {
+            background: rgba(30, 41, 59, 0.9);
+            border-color: rgba(74, 222, 128, 0.3);
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .option-card h3 {
+            color: var(--text-main);
+            margin: 15px 0 5px 0;
+            font-weight: 700;
+        }
+
+        .option-card p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        .card-icon { font-size: 3.5rem; }
+
+        /* Locked State for Daily Card */
+        .option-card.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .option-card.locked:hover { transform: none; }
+    </style>
+</head>
+<body class="dashboard-body">
+    <div class="container dashboard-container">
+        <header class="stats-header">
+            <div class="user-welcome">
+                <h1>Welcome, <span id="username-text">Aastha</span></h1>
+                <button onclick="logout()" class="logout-pill">Logout System</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-number" id="stat-done">0</span>
+                    <span class="stat-label">Tasks Done</span>
+                </div>
+                <div class="stat-card" style="border-color: rgba(74, 222, 128, 0.2);">
+                    <span class="stat-number" id="stat-pending">0</span>
+                    <span class="stat-label">Pending</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-grid">
+            <div class="option-card" onclick="location.href='/journal'">
+                <div class="card-icon">✍️</div>
+                <h3>Write Journal</h3>
+                <p>Record your thoughts</p>
+            </div>
+
+            <div class="option-card" onclick="location.href='/history'">
+                <div class="card-icon">📜</div>
+                <h3>History</h3>
+                <p>Review your journey</p>
+            </div>
+
+            <div class="option-card" onclick="location.href='/todo'">
+                <div class="card-icon">✅</div>
+                <h3>To-Do List</h3>
+                <p>Manage objectives</p>
+            </div>
+
+            <div id="daily-card" class="option-card locked" onclick="openDailyCard()">
+                <div class="card-icon">🃏</div>
+                <h3>Daily Card</h3>
+                <p id="card-status">Locked until 8:00 PM</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        async function initDashboard() {
+            const token = localStorage.getItem('access_token');
+            if (!token) { window.location.href = '/'; return; }
+
+            try {
+                const response = await fetch('/api/user-stats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('username-text').innerText = data.username || "Aastha";
+                    document.getElementById('stat-done').innerText = data.tasks_done ?? 0;
+                    document.getElementById('stat-pending').innerText = data.tasks_pending ?? 0;
+
+                    if (data.is_card_ready) {
+                        const card = document.getElementById('daily-card');
+                        card.classList.remove('locked');
+                        document.getElementById('card-status').innerText = "Summary Available";
+                    }
+                } else {
+                    console.error("Session Expired");
+                    logout();
+                }
+            } catch (err) {
+                console.error("Sync Error:", err);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('access_token');
+            window.location.href = '/';
+        }
+
+        function openDailyCard() {
+            const card = document.getElementById('daily-card');
+            if (!card.classList.contains('locked')) {
+                window.location.href = '/daily-card';
+            } else {
+                alert("The Daily Card unlocks after 8:00 PM to synthesize your day's journey.");
+            }
+        }
+
+        initDashboard();
+    </script>
+</body>
+</html>
