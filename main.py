@@ -335,47 +335,142 @@ async def daily_card_page(request: Request):
     return templates.TemplateResponse("daily-card.html", {"request": request})
 from datetime import datetime
 
+from collections import Counter
+import re
+from datetime import datetime
+
+from datetime import datetime
+from collections import Counter
+import re
+
+from datetime import datetime
+import re
+
 @app.get("/api/daily-summary")
 async def get_daily_summary(username: str = Depends(get_current_user)):
     conn = get_connection()
     try:
         with conn.cursor() as cursor:
-            # 1. Identity Fetch
+
+            # 🔹 1. Get user_id
             cursor.execute("SELECT id FROM users WHERE username=%s", (username,))
-            user_id = cursor.fetchone()['id']
-            
-            # 2. MOOD ANALYSIS: Fetch only TODAY'S journals
+            user = cursor.fetchone()
+            user_id = user['id']
+
+            # 🔹 2. GET TODAY'S JOURNAL TEXT
             cursor.execute("""
-                SELECT predicted_mood FROM journals 
+                SELECT entry_text 
+                FROM journal_entries
                 WHERE user_id=%s AND DATE(created_at) = CURDATE()
             """, (user_id,))
+            
             entries = cursor.fetchall()
-            
-            # Extract Emojis from today's specific logs
-            all_mood_text = " ".join([row['predicted_mood'] for row in entries])
-            emojis_found = re.findall(r'[^\w\s,|_]+', all_mood_text)
-            
-            # 3. TASK STATS: Fetch only TODAY'S completions
+            combined_text = " ".join([row['entry_text'] for row in entries])
+
+            print("DEBUG - Combined Text:", combined_text)
+
+            # 🔹 3. EMOJI FROM GROQ (SAFE)
+            if not combined_text.strip():
+                emojis = ["🌿", "✨", "🌸"]
+                quote = "Every day is a fresh start"
+            else:
+                try:
+                    prompt = f"""
+                    Based on this user's day:
+                    {combined_text}
+
+                    Write a short motivational line (max 10 words).
+                    No emoji.
+                    """
+
+                    chat = client.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}],
+                    model="llama-3.1-8b-instant"
+                    )
+
+                    quote = chat.choices[0].message.content.strip()
+                    prompt = f"""
+                    You are a mental wellness assistant.
+
+                    Based on the user's journal entries:
+                    {combined_text}
+
+                    Return exactly three emoji that represents their overall emotional state.
+                    No explanation. Only emoji.
+                    """
+
+                    chat = client.chat.completions.create(
+                        messages=[{"role": "user", "content": prompt}],
+                        model="llama-3.1-8b-instant"
+                    )
+
+                    raw_output = chat.choices[0].message.content.strip()
+                    print("DEBUG - Raw Emoji:", raw_output)
+
+                    # Extract only emoji
+                    emojis = re.findall(
+                        r'[\U0001F600-\U0001F64F'
+                        r'\U0001F300-\U0001F5FF'
+                        r'\U0001F680-\U0001F6FF'
+                        r'\U0001F1E0-\U0001F1FF]+',
+                        raw_output
+                    )
+
+                    emojis = emojis[:3] if len(emojis)<=3 else ["❤️","😊","🫰"]
+
+                except Exception as e:
+                    print("AI Error:", e)
+                    emojis = ["😐", "🌿", "✨"]
+                    quote = "Take it easy, tomorrow is a fresh start"
+
+            # 🔹 4. TASK STATS (FIXED LOGIC ✅)
             cursor.execute("""
                 SELECT 
-                    SUM(CASE WHEN is_completed = 1 AND DATE(completed_at) = CURDATE() THEN 1 ELSE 0 END) as done_today,
+                    SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) as done_total,
                     SUM(CASE WHEN is_completed = 0 THEN 1 ELSE 0 END) as pending_total
-                FROM tasks WHERE user_id=%s
+                FROM tasks
+                WHERE user_id=%s
             """, (user_id,))
+            
             stats = cursor.fetchone()
 
-            # Determine dominant mood from today's data
-            mood_list = [r['predicted_mood'] for r in entries]
-            dominant_mood = max(set(mood_list), key=mood_list.count) if mood_list else "Neutral"
+            done = stats['done_total'] or 0
+            pending = stats['pending_total'] or 0
+            total = done + pending
 
+            productivity = (done / total * 100) if total > 0 else 0
+
+            print("DEBUG - Done:", done, "Pending:", pending)
+
+            # 🔹 5. PRODUCTIVITY LABEL
+            if productivity >= 75:
+                productivity_label = "Highly Productive 🔥"
+            elif productivity >= 40:
+                productivity_label = "Moderate 🙂"
+            else:
+                productivity_label = "Low 😞"
+
+            # 🔹 6. SMART MESSAGE
+            if productivity > 70:
+                message = "You had a strong and productive day 🌸"
+            elif productivity < 40:
+                message = "Take it slow, tomorrow is a fresh start 💙"
+            else:
+                message = "You're doing well, keep going 🌿"
+            
+
+            # 🔹 7. FINAL RESPONSE
             return {
                 "date": datetime.now().strftime("%B %d, %Y"),
-                "dominant_mood": dominant_mood,
-                "emojis": emojis_found, # All emojis from today's journals
-                "tasks_completed": stats['done_today'] or 0,
-                "tasks_remaining": stats['pending_total'] or 0,
-                "message": f"Aastha, your system frequency for today is {dominant_mood}."
+                "emojis": emojis,
+                "quote":quote,
+                "tasks_completed": done,
+                "tasks_remaining": pending,
+                "productivity": round(productivity),
+                "productivity_label": productivity_label,
+                "message": message
             }
+
     finally:
         conn.close()
 # Also add the HTML route to show the page

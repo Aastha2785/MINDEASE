@@ -178,6 +178,9 @@
             color: var(--accent);
             margin-top: 4px;
         }
+        span{
+            font-size:20px;
+        }
 
         .btn-delete-task {
             background: rgba(225, 29, 72, 0.1);
@@ -240,15 +243,17 @@
                     const diffTime = dueDate - today;
                     const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                    if(daysLeft > 0){
-                        deadlineHTML = `<div class="task-date-inline"> PENDING: ${daysLeft} Days REMAINING</div>`;
-                    } else if(daysLeft === 0){
-                        deadlineHTML = `<div class="task-date-inline" style="color:#fbbf24;">// PRIORITY: DUE TODAY</div>`;
+                    if(daysLeft > 1){
+                        deadlineHTML = `<span class="task-date-inline"> PENDING: ${daysLeft-1} Days REMAINING</span><span id='ab'>😊</span>`;
+                    } else if(daysLeft === 1){
+                        deadlineHTML = `<span class="task-date-inline" style="color:#fbbf24;">PRIORITY: DUE TODAY</span><span>😟</span>`;
                     } else {
-                        deadlineHTML = `<div class="task-date-inline" style="color:#ef4444;">// ALERT: OVERDUE</div>`;
+                        deadlineHTML = `<span class="task-date-inline" style="color:#ef4444;">ALERT: OVERDUE</span><span>😰</span>`;
                     }
                 }
-
+if (t.is_completed) {
+        deadlineHTML = `<span class="task-date-inline" style="color:#4ade80;">COMPLETED </span><span>✅</span>`;
+    }
                 return `
                     <div class="task-card ${t.is_completed ? 'completed' : ''}">
                         <div class="task-main">
@@ -294,7 +299,7 @@
     }
 
     async function removeTask(id) {
-        if(!confirm("Purge this task from system?")) return;
+        if(!confirm("Delete this task from system?")) return;
         const res = await fetch(`/api/tasks/${id}`, {
             method: 'DELETE',
             headers: {'Authorization': `Bearer ${token}`}
