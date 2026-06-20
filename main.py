@@ -30,15 +30,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 client = Groq(api_key=api_key)
 
 # --- DATABASE ---
-def get_connection():
-    return pymysql.connect(
-        host="localhost",
-        user="root",
-        password=os.getenv("DB_PASSWORD"),
-        database="mindEase",
-        cursorclass=pymysql.cursors.DictCursor
-    )
-
+# --- DATABASE ---
+from database import get_connection
 # --- SECURITY UTILS ---
 def hash_pass(password: str):
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
