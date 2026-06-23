@@ -242,7 +242,7 @@
                 <p>Manage objectives</p>
             </div>
 
-            <div id="daily-card" class="option-card locked" onclick="openDailyCard()">
+            <div id="daily-card" class="option-card" onclick="openDailyCard()">
                 <div class="card-icon">🃏</div>
                 <h3>Daily Card</h3>
                 <p id="card-status">Locked until 8:00 PM</p>
@@ -287,13 +287,8 @@
         }
 
         function openDailyCard() {
-            const card = document.getElementById('daily-card');
-            if (!card.classList.contains('locked')) {
-                window.location.href = '/daily-card';
-            } else {
-                alert("The Daily Card unlocks after 8:00 PM to synthesize your day's journey.");
-            }
-        }
+    window.location.href = '/daily-card';
+}
 
         initDashboard();
     </script>
