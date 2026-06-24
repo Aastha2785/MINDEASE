@@ -429,48 +429,29 @@ class SelfieEntry(BaseModel):
 @app.post("/api/selfie-mood")
 async def analyze_selfie(entry: SelfieEntry, username: str = Depends(get_current_user)):
     try:
-        prompt = """
-        You are a mood analysis expert. A user has taken a selfie and facial landmarks have been detected.
-        Based on typical facial expression patterns, analyze and respond with:
-        1. Detected mood (one of: Happy, Tired, Stressed, Neutral, Sad, Energetic)
-        2. A short personalized suggestion (1-2 lines max)
-        
-        Format your response EXACTLY like this:
-        MOOD: [mood here]
-        SUGGESTION: [suggestion here]
-        """
-        
+        # Frontend se jo facial data aaya wo use karo directly
         chat = client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": entry.image_data}],
             model="llama-3.1-8b-instant"
         )
         
         response_text = chat.choices[0].message.content.strip()
+        print(f"DEBUG Groq response: {response_text}")
         
-        # Parse response
-        lines = response_text.split('\n')
         detected_mood = "Neutral"
-        suggestion = "Take a moment to breathe and relax."
+        suggestion = "Take a moment to breathe."
         
-        for line in lines:
+        for line in response_text.split('\n'):
             if line.startswith("MOOD:"):
                 detected_mood = line.replace("MOOD:", "").strip()
             elif line.startswith("SUGGESTION:"):
                 suggestion = line.replace("SUGGESTION:", "").strip()
-                
-        return {
-            "detected_mood": detected_mood,
-            "suggestion": suggestion,
-            "image_data": entry.image_data
-        }
+        
+        return {"detected_mood": detected_mood, "suggestion": suggestion}
         
     except Exception as e:
-        print(f"Selfie analysis error: {e}")
-        return {
-            "detected_mood": "Neutral",
-            "suggestion": "Take a moment to breathe and relax.",
-            "image_data": entry.image_data
-        }
+        print(f"Error: {e}")
+        return {"detected_mood": "Neutral", "suggestion": "Take a moment to breathe."}
 
 @app.post("/api/selfie-save")
 async def save_selfie(entry: SelfieEntry, username: str = Depends(get_current_user)):
