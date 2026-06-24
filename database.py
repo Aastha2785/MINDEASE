@@ -45,6 +45,15 @@ def init_db():
     quote TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS selfie_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    image_data TEXT NOT NULL,
+    detected_mood TEXT,
+    suggestion TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
     """)
     
     conn.commit()

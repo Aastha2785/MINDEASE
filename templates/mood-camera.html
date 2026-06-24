@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindEase - Mood Camera</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <style>
+        :root {
+            --accent: #4ade80;
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .top-bar {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .back-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            color: #94a3b8;
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .back-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .camera-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            padding: 30px;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            background: #000;
+        }
+
+        #video {
+            width: 100%;
+            display: block;
+            border-radius: 20px;
+            transform: scaleX(-1); /* mirror effect */
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .scan-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            border-radius: 20px;
+            border: 2px solid transparent;
+            transition: border-color 0.3s;
+            pointer-events: none;
+        }
+
+        .scan-overlay.scanning {
+            border-color: var(--accent);
+            box-shadow: inset 0 0 30px rgba(74, 222, 128, 0.1);
+            animation: scanPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes scanPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+            min-height: 20px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 28px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: 0.3s;
+            border: none;
+        }
+
+        .btn-capture {
+            background: var(--accent);
+            color: #0f172a;
+        }
+
+        .btn-capture:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.4);
+        }
+
+        .btn-retake {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: #94a3b8;
+            display: none;
+        }
+
+        .btn-retake:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Result Section */
+        .result-card {
+            margin-top: 25px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .mood-badge {
+            display: inline-block;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            color: var(--accent);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-weight: 800;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+
+        .suggestion-text {
+            color: #cbd5e1;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            font-style: italic;
+            border-left: 3px solid var(--accent);
+            padding-left: 15px;
+            text-align: left;
+            margin: 15px 0;
+        }
+
+        .save-btn {
+            background: var(--accent);
+            color: #0f172a;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+
+        .save-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.4);
+        }
+
+        .save-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .saved-msg {
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            display: none;
+        }
+
+        /* Preview image */
+        #preview-img {
+            width: 100%;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            display: none;
+            transform: scaleX(-1);
+        }
+
+        @media (max-width: 768px) {
+            .btn { padding: 10px 20px; font-size: 0.85rem; }
+            h2 { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <a href="/dashboard" class="back-btn">← Back</a>
+    <h2>📸 Mood Camera</h2>
+</div>
+
+<div class="camera-card">
+    <div class="video-wrapper">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas"></canvas>
+        <div class="scan-overlay" id="scan-overlay"></div>
+    </div>
+
+    <img id="preview-img" alt="Captured selfie" />
+
+    <p class="status-text" id="status-text">Camera ready — take a selfie to analyze your mood!</p>
+
+    <div class="btn-row">
+        <button class="btn btn-capture" id="btn-capture" onclick="captureSelfie()">📸 Capture & Analyze</button>
+        <button class="btn btn-retake" id="btn-retake" onclick="retake()">🔄 Retake</button>
+    </div>
+
+    <!-- Result Section -->
+    <div class="result-card" id="result-card">
+        <div class="mood-badge" id="mood-badge">Analyzing...</div>
+        <div class="suggestion-text" id="suggestion-text"></div>
+        <button class="save-btn" id="save-btn" onclick="saveSelfie()">💾 Save to History</button>
+        <p class="saved-msg" id="saved-msg">✅ Saved to your history!</p>
+    </div>
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let capturedImageData = null;
+    let currentMood = null;
+    let currentSuggestion = null;
+
+    // Start camera
+    async function startCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user' }
+            });
+            video.srcObject = stream;
+            document.getElementById('status-text').innerText = 'Camera ready — take a selfie to analyze your mood!';
+        } catch (err) {
+            document.getElementById('status-text').innerText = '❌ Camera access denied. Please allow camera permission.';
+            console.error(err);
+        }
+    }
+
+    async function captureSelfie() {
+        // Draw video frame to canvas
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+
+        // Get base64 image
+        capturedImageData = canvas.toDataURL('image/jpeg', 0.8);
+
+        // Show preview
+        const preview = document.getElementById('preview-img');
+        preview.src = capturedImageData;
+        preview.style.display = 'block';
+        video.style.display = 'none';
+        document.getElementById('scan-overlay').style.display = 'none';
+
+        // Show retake button
+        document.getElementById('btn-capture').style.display = 'none';
+        document.getElementById('btn-retake').style.display = 'inline-block';
+
+        // Analyze
+        await analyzeMood();
+    }
+
+    async function analyzeMood() {
+        const token = localStorage.getItem('access_token');
+        document.getElementById('status-text').innerText = '🔍 Analyzing your mood...';
+        document.getElementById('scan-overlay').classList.add('scanning');
+
+        const resultCard = document.getElementById('result-card');
+        resultCard.style.display = 'block';
+        document.getElementById('mood-badge').innerText = 'Analyzing...';
+        document.getElementById('suggestion-text').innerText = '';
+
+        try {
+            const res = await fetch('/api/selfie-mood', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ image_data: capturedImageData })
+            });
+
+            const data = await res.json();
+            currentMood = data.detected_mood;
+            currentSuggestion = data.suggestion;
+
+            document.getElementById('mood-badge').innerText = getMoodEmoji(currentMood) + ' ' + currentMood;
+            document.getElementById('suggestion-text').innerText = currentSuggestion;
+            document.getElementById('status-text').innerText = 'Mood detected! Save it to your history?';
+            document.getElementById('scan-overlay').classList.remove('scanning');
+
+        } catch (err) {
+            document.getElementById('status-text').innerText = '❌ Analysis failed. Try again!';
+            console.error(err);
+        }
+    }
+
+    async function saveSelfie() {
+        const token = localStorage.getItem('access_token');
+        const saveBtn = document.getElementById('save-btn');
+        saveBtn.disabled = true;
+        saveBtn.innerText = 'Saving...';
+
+        try {
+            const res = await fetch('/api/selfie-save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ image_data: capturedImageData })
+            });
+
+            if (res.ok) {
+                document.getElementById('saved-msg').style.display = 'block';
+                saveBtn.style.display = 'none';
+            }
+        } catch (err) {
+            saveBtn.disabled = false;
+            saveBtn.innerText = '💾 Save to History';
+            console.error(err);
+        }
+    }
+
+    function retake() {
+        capturedImageData = null;
+        currentMood = null;
+        currentSuggestion = null;
+
+        document.getElementById('preview-img').style.display = 'none';
+        video.style.display = 'block';
+        document.getElementById('scan-overlay').style.display = 'block';
+        document.getElementById('scan-overlay').classList.remove('scanning');
+
+        document.getElementById('btn-capture').style.display = 'inline-block';
+        document.getElementById('btn-retake').style.display = 'none';
+
+        document.getElementById('result-card').style.display = 'none';
+        document.getElementById('saved-msg').style.display = 'none';
+        document.getElementById('save-btn').style.display = 'inline-block';
+        document.getElementById('save-btn').disabled = false;
+        document.getElementById('save-btn').innerText = '💾 Save to History';
+
+        document.getElementById('status-text').innerText = 'Camera ready — take a selfie to analyze your mood!';
+    }
+
+    function getMoodEmoji(mood) {
+        const emojis = {
+            'Happy': '😊',
+            'Tired': '😴',
+            'Stressed': '😟',
+            'Neutral': '😐',
+            'Sad': '😢',
+            'Energetic': '⚡'
+        };
+        return emojis[mood] || '😐';
+    }
+
+    // Check auth
+    const token = localStorage.getItem('access_token');
+    if (!token) { window.location.href = '/'; }
+
+    startCamera();
+</script>
+
+</body>
+</html>

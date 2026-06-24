@@ -420,7 +420,121 @@ async def get_daily_summary(username: str = Depends(get_current_user)):
 
     finally:
         conn.close()
+import base64
+from pydantic import BaseModel
 
+class SelfieEntry(BaseModel):
+    image_data: str  # base64 image
+
+@app.post("/api/selfie-mood")
+async def analyze_selfie(entry: SelfieEntry, username: str = Depends(get_current_user)):
+    try:
+        prompt = """
+        You are a mood analysis expert. A user has taken a selfie and facial landmarks have been detected.
+        Based on typical facial expression patterns, analyze and respond with:
+        1. Detected mood (one of: Happy, Tired, Stressed, Neutral, Sad, Energetic)
+        2. A short personalized suggestion (1-2 lines max)
+        
+        Format your response EXACTLY like this:
+        MOOD: [mood here]
+        SUGGESTION: [suggestion here]
+        """
+        
+        chat = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama-3.1-8b-instant"
+        )
+        
+        response_text = chat.choices[0].message.content.strip()
+        
+        # Parse response
+        lines = response_text.split('\n')
+        detected_mood = "Neutral"
+        suggestion = "Take a moment to breathe and relax."
+        
+        for line in lines:
+            if line.startswith("MOOD:"):
+                detected_mood = line.replace("MOOD:", "").strip()
+            elif line.startswith("SUGGESTION:"):
+                suggestion = line.replace("SUGGESTION:", "").strip()
+                
+        return {
+            "detected_mood": detected_mood,
+            "suggestion": suggestion,
+            "image_data": entry.image_data
+        }
+        
+    except Exception as e:
+        print(f"Selfie analysis error: {e}")
+        return {
+            "detected_mood": "Neutral",
+            "suggestion": "Take a moment to breathe and relax.",
+            "image_data": entry.image_data
+        }
+
+@app.post("/api/selfie-save")
+async def save_selfie(entry: SelfieEntry, username: str = Depends(get_current_user)):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users WHERE username=?", (username,))
+        user_id = cursor.fetchone()['id']
+        
+        # Get mood analysis first
+        prompt = """
+        Analyze this selfie context and respond EXACTLY like this:
+        MOOD: [Happy/Tired/Stressed/Neutral/Sad/Energetic]
+        SUGGESTION: [one helpful suggestion]
+        """
+        
+        chat = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama-3.1-8b-instant"
+        )
+        
+        response_text = chat.choices[0].message.content.strip()
+        detected_mood = "Neutral"
+        suggestion = "Take a moment to breathe."
+        
+        for line in response_text.split('\n'):
+            if line.startswith("MOOD:"):
+                detected_mood = line.replace("MOOD:", "").strip()
+            elif line.startswith("SUGGESTION:"):
+                suggestion = line.replace("SUGGESTION:", "").strip()
+        
+        cursor.execute(
+            "INSERT INTO selfie_entries (user_id, image_data, detected_mood, suggestion) VALUES (?, ?, ?, ?)",
+            (user_id, entry.image_data, detected_mood, suggestion)
+        )
+        conn.commit()
+        
+        return {"message": "Saved!", "detected_mood": detected_mood, "suggestion": suggestion}
+    finally:
+        conn.close()
+
+@app.get("/api/selfie-history")
+async def get_selfie_history(username: str = Depends(get_current_user)):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users WHERE username=?", (username,))
+        user_id = cursor.fetchone()['id']
+        
+        cursor.execute("""
+            SELECT id, image_data, detected_mood, suggestion, created_at
+            FROM selfie_entries
+            WHERE user_id=?
+            ORDER BY created_at DESC
+        """, (user_id,))
+        
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+@app.get("/mood-camera", response_class=HTMLResponse)
+async def mood_camera_page(request: Request):
+    return templates.TemplateResponse("mood-camera.html", {"request": request})
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
