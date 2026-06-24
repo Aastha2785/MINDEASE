@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MindEase - Mood Camera</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <style>
         :root {
             --accent: #4ade80;
-            --bg-dark: #0f172a;
             --card-bg: rgba(30, 41, 59, 0.8);
             --glass-border: rgba(255, 255, 255, 0.1);
         }
@@ -21,7 +20,7 @@
             color: #f8fafc;
             font-family: 'Inter', sans-serif;
             min-height: 100vh;
-            padding: 30px 20px;
+            padding: 25px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -29,11 +28,11 @@
 
         .top-bar {
             width: 100%;
-            max-width: 600px;
+            max-width: 620px;
             display: flex;
             align-items: center;
             gap: 15px;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
         .back-btn {
@@ -63,9 +62,9 @@
             backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
             border-radius: 30px;
-            padding: 30px;
+            padding: 25px;
             width: 100%;
-            max-width: 600px;
+            max-width: 620px;
             text-align: center;
         }
 
@@ -76,52 +75,92 @@
             overflow: hidden;
             margin-bottom: 20px;
             background: #000;
+            aspect-ratio: 4/3;
         }
 
         #video {
             width: 100%;
+            height: 100%;
+            object-fit: cover;
             display: block;
             border-radius: 20px;
-            transform: scaleX(-1); /* mirror effect */
+            transform: scaleX(-1);
         }
 
         #canvas {
-            display: none;
-        }
-
-        .scan-overlay {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            border-radius: 20px;
-            border: 2px solid transparent;
-            transition: border-color 0.3s;
+            transform: scaleX(-1);
             pointer-events: none;
         }
 
-        .scan-overlay.scanning {
-            border-color: var(--accent);
-            box-shadow: inset 0 0 30px rgba(74, 222, 128, 0.1);
-            animation: scanPulse 1.5s ease-in-out infinite;
+        .live-mood-overlay {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 50px;
+            padding: 8px 20px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--accent);
+            white-space: nowrap;
         }
 
-        @keyframes scanPulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        .scan-line {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(to right, transparent, var(--accent), transparent);
+            animation: scanMove 2s linear infinite;
+            opacity: 0.7;
         }
 
-        .status-text {
-            color: #94a3b8;
-            font-size: 0.85rem;
+        @keyframes scanMove {
+            0% { top: 0%; }
+            100% { top: 100%; }
+        }
+
+        .mood-result {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 20px;
             margin-bottom: 20px;
-            min-height: 20px;
+            text-align: left;
+            min-height: 80px;
+        }
+
+        .mood-badge {
+            display: inline-block;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            color: var(--accent);
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-weight: 800;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        .suggestion-text {
+            color: #cbd5e1;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            font-style: italic;
+            border-left: 3px solid var(--accent);
+            padding-left: 12px;
         }
 
         .btn-row {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             justify-content: center;
-            flex-wrap: wrap;
         }
 
         .btn {
@@ -144,73 +183,7 @@
             box-shadow: 0 0 20px rgba(74, 222, 128, 0.4);
         }
 
-        .btn-retake {
-            background: transparent;
-            border: 1px solid var(--glass-border);
-            color: #94a3b8;
-            display: none;
-        }
-
-        .btn-retake:hover { border-color: var(--accent); color: var(--accent); }
-
-        /* Result Section */
-        .result-card {
-            margin-top: 25px;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 25px;
-            display: none;
-            animation: fadeIn 0.5s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .mood-badge {
-            display: inline-block;
-            background: rgba(74, 222, 128, 0.1);
-            border: 1px solid rgba(74, 222, 128, 0.3);
-            color: var(--accent);
-            padding: 8px 20px;
-            border-radius: 50px;
-            font-weight: 800;
-            font-size: 1.1rem;
-            margin-bottom: 15px;
-            letter-spacing: 1px;
-        }
-
-        .suggestion-text {
-            color: #cbd5e1;
-            font-size: 0.95rem;
-            line-height: 1.6;
-            font-style: italic;
-            border-left: 3px solid var(--accent);
-            padding-left: 15px;
-            text-align: left;
-            margin: 15px 0;
-        }
-
-        .save-btn {
-            background: var(--accent);
-            color: #0f172a;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 50px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: 0.3s;
-            margin-top: 10px;
-        }
-
-        .save-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 20px rgba(74, 222, 128, 0.4);
-        }
-
-        .save-btn:disabled {
+        .btn-capture:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
@@ -220,22 +193,27 @@
             color: var(--accent);
             font-weight: 700;
             font-size: 0.9rem;
-            margin-top: 10px;
+            margin-top: 12px;
             display: none;
+            text-align: center;
         }
 
-        /* Preview image */
-        #preview-img {
-            width: 100%;
-            border-radius: 15px;
+        .status-pill {
+            font-size: 0.8rem;
+            color: #94a3b8;
             margin-bottom: 15px;
-            display: none;
-            transform: scaleX(-1);
+        }
+
+        .analyzing-text {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            padding: 15px;
         }
 
         @media (max-width: 768px) {
             .btn { padding: 10px 20px; font-size: 0.85rem; }
             h2 { font-size: 1.2rem; }
+            .camera-card { padding: 18px; }
         }
     </style>
 </head>
@@ -248,84 +226,168 @@
 
 <div class="camera-card">
     <div class="video-wrapper">
-        <video id="video" autoplay playsinline></video>
+        <video id="video" autoplay playsinline muted></video>
         <canvas id="canvas"></canvas>
-        <div class="scan-overlay" id="scan-overlay"></div>
+        <div class="scan-line"></div>
+        <div class="live-mood-overlay" id="live-mood">🔍 Detecting face...</div>
     </div>
 
-    <img id="preview-img" alt="Captured selfie" />
+    <p class="status-pill" id="status-pill">Live mood detection — updates every 4 seconds</p>
 
-    <p class="status-text" id="status-text">Camera ready — take a selfie to analyze your mood!</p>
+    <div class="mood-result" id="mood-result">
+        <p class="analyzing-text">⏳ Waiting for face detection...</p>
+    </div>
 
     <div class="btn-row">
-        <button class="btn btn-capture" id="btn-capture" onclick="captureSelfie()">📸 Capture & Analyze</button>
-        <button class="btn btn-retake" id="btn-retake" onclick="retake()">🔄 Retake</button>
+        <button class="btn btn-capture" id="btn-save" onclick="saveMemory()" disabled>
+            📸 Save as Memory
+        </button>
     </div>
 
-    <!-- Result Section -->
-    <div class="result-card" id="result-card">
-        <div class="mood-badge" id="mood-badge">Analyzing...</div>
-        <div class="suggestion-text" id="suggestion-text"></div>
-        <button class="save-btn" id="save-btn" onclick="saveSelfie()">💾 Save to History</button>
-        <p class="saved-msg" id="saved-msg">✅ Saved to your history!</p>
-    </div>
+    <p class="saved-msg" id="saved-msg">✅ Saved to your history!</p>
 </div>
 
 <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    let capturedImageData = null;
+
     let currentMood = null;
     let currentSuggestion = null;
+    let isAnalyzing = false;
+    let faceDetected = false;
+    let lastLandmarks = null;
 
-    // Start camera
-    async function startCamera() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'user' }
-            });
-            video.srcObject = stream;
-            document.getElementById('status-text').innerText = 'Camera ready — take a selfie to analyze your mood!';
-        } catch (err) {
-            document.getElementById('status-text').innerText = '❌ Camera access denied. Please allow camera permission.';
-            console.error(err);
+    const token = localStorage.getItem('access_token');
+    if (!token) { window.location.href = '/'; }
+
+    // MediaPipe Setup
+    const faceMesh = new FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
+
+    faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+
+    faceMesh.onResults(onResults);
+
+    function onResults(results) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            faceDetected = true;
+            lastLandmarks = results.multiFaceLandmarks[0];
+
+            // Draw green dots on face landmarks
+            for (const landmark of lastLandmarks) {
+                ctx.beginPath();
+                ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 1.2, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(74, 222, 128, 0.6)';
+                ctx.fill();
+            }
+
+            document.getElementById('btn-save').disabled = currentMood ? false : true;
+
+        } else {
+            faceDetected = false;
+            lastLandmarks = null;
+            document.getElementById('live-mood').innerText = '❌ No face detected';
+            document.getElementById('btn-save').disabled = true;
         }
     }
 
-    async function captureSelfie() {
-        // Draw video frame to canvas
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
+    async function startCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: 640, height: 480 }
+            });
+            video.srcObject = stream;
 
-        // Get base64 image
-        capturedImageData = canvas.toDataURL('image/jpeg', 0.8);
+            video.onloadedmetadata = () => {
+                const camera = new Camera(video, {
+                    onFrame: async () => {
+                        await faceMesh.send({ image: video });
+                    },
+                    width: 640,
+                    height: 480
+                });
+                camera.start();
+            };
 
-        // Show preview
-        const preview = document.getElementById('preview-img');
-        preview.src = capturedImageData;
-        preview.style.display = 'block';
-        video.style.display = 'none';
-        document.getElementById('scan-overlay').style.display = 'none';
+            // Analyze every 4 seconds
+            setInterval(() => {
+                if (faceDetected && lastLandmarks && !isAnalyzing) {
+                    analyzeLandmarks();
+                }
+            }, 4000);
 
-        // Show retake button
-        document.getElementById('btn-capture').style.display = 'none';
-        document.getElementById('btn-retake').style.display = 'inline-block';
+            // First analysis after 2 seconds
+            setTimeout(() => {
+                if (faceDetected && lastLandmarks) analyzeLandmarks();
+            }, 2000);
 
-        // Analyze
-        await analyzeMood();
+        } catch (err) {
+            document.getElementById('status-pill').innerText = '❌ Camera access denied.';
+        }
     }
 
-    async function analyzeMood() {
-        const token = localStorage.getItem('access_token');
-        document.getElementById('status-text').innerText = '🔍 Analyzing your mood...';
-        document.getElementById('scan-overlay').classList.add('scanning');
+    function analyzeLandmarks() {
+        if (!lastLandmarks || isAnalyzing) return;
 
-        const resultCard = document.getElementById('result-card');
-        resultCard.style.display = 'block';
-        document.getElementById('mood-badge').innerText = 'Analyzing...';
-        document.getElementById('suggestion-text').innerText = '';
+        // Eye Aspect Ratio (EAR)
+        const leftEyeTop = lastLandmarks[159];
+        const leftEyeBottom = lastLandmarks[145];
+        const leftEyeLeft = lastLandmarks[33];
+        const leftEyeRight = lastLandmarks[133];
+        const leftEAR = Math.abs(leftEyeTop.y - leftEyeBottom.y) / Math.abs(leftEyeLeft.x - leftEyeRight.x);
+
+        const rightEyeTop = lastLandmarks[386];
+        const rightEyeBottom = lastLandmarks[374];
+        const rightEyeLeft = lastLandmarks[362];
+        const rightEyeRight = lastLandmarks[263];
+        const rightEAR = Math.abs(rightEyeTop.y - rightEyeBottom.y) / Math.abs(rightEyeLeft.x - rightEyeRight.x);
+
+        const avgEAR = (leftEAR + rightEAR) / 2;
+
+        // Mouth ratio
+        const mouthLeft = lastLandmarks[61];
+        const mouthRight = lastLandmarks[291];
+        const mouthTop = lastLandmarks[0];
+        const mouthBottom = lastLandmarks[17];
+        const mouthWidth = Math.abs(mouthRight.x - mouthLeft.x);
+        const mouthHeight = Math.abs(mouthTop.y - mouthBottom.y);
+        const mouthRatio = mouthHeight / mouthWidth;
+
+        // Build text description
+        const eyeDesc = avgEAR < 0.15 ? "eyes nearly closed, very tired" :
+                        avgEAR < 0.22 ? "eyes slightly droopy, tired" :
+                        avgEAR < 0.30 ? "eyes normally open, alert" : "eyes wide open, very alert or surprised";
+
+        const mouthDesc = mouthRatio > 0.15 ? "mouth open" :
+                          mouthRatio > 0.05 ? "slight smile or neutral" : "mouth closed or tight";
+
+        sendToGroq(eyeDesc, mouthDesc, avgEAR, mouthRatio);
+    }
+
+    async function sendToGroq(eyeDesc, mouthDesc, ear, mouthRatio) {
+        isAnalyzing = true;
+        document.getElementById('live-mood').innerText = '🔍 Analyzing...';
+
+        const prompt = `You are a mood detection expert analyzing facial landmark data.
+
+Facial data:
+- Eyes: ${eyeDesc} (EAR: ${ear.toFixed(3)})
+- Mouth: ${mouthDesc} (ratio: ${mouthRatio.toFixed(3)})
+
+Respond EXACTLY in this format only, nothing else:
+MOOD: [one of: Happy, Tired, Stressed, Neutral, Sad, Energetic]
+SUGGESTION: [one short helpful suggestion, max 12 words]`;
 
         try {
             const res = await fetch('/api/selfie-mood', {
@@ -334,29 +396,41 @@
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ image_data: capturedImageData })
+                body: JSON.stringify({ image_data: prompt })
             });
 
             const data = await res.json();
             currentMood = data.detected_mood;
             currentSuggestion = data.suggestion;
 
-            document.getElementById('mood-badge').innerText = getMoodEmoji(currentMood) + ' ' + currentMood;
-            document.getElementById('suggestion-text').innerText = currentSuggestion;
-            document.getElementById('status-text').innerText = 'Mood detected! Save it to your history?';
-            document.getElementById('scan-overlay').classList.remove('scanning');
+            const emoji = getMoodEmoji(currentMood);
+            document.getElementById('live-mood').innerText = `${emoji} ${currentMood}`;
+            document.getElementById('mood-result').innerHTML = `
+                <div class="mood-badge">${emoji} ${currentMood}</div>
+                <p class="suggestion-text">${currentSuggestion}</p>
+            `;
+            document.getElementById('btn-save').disabled = false;
 
         } catch (err) {
-            document.getElementById('status-text').innerText = '❌ Analysis failed. Try again!';
-            console.error(err);
+            document.getElementById('live-mood').innerText = '⚠️ Analysis failed';
         }
+
+        isAnalyzing = false;
     }
 
-    async function saveSelfie() {
-        const token = localStorage.getItem('access_token');
-        const saveBtn = document.getElementById('save-btn');
+    async function saveMemory() {
+        if (!currentMood) return;
+
+        const saveBtn = document.getElementById('btn-save');
         saveBtn.disabled = true;
         saveBtn.innerText = 'Saving...';
+
+        // Capture frame
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = video.videoWidth;
+        tempCanvas.height = video.videoHeight;
+        tempCanvas.getContext('2d').drawImage(video, 0, 0);
+        const imageData = tempCanvas.toDataURL('image/jpeg', 0.7);
 
         try {
             const res = await fetch('/api/selfie-save', {
@@ -365,60 +439,36 @@
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ image_data: capturedImageData })
+                body: JSON.stringify({
+                    image_data: imageData,
+                    detected_mood: currentMood,
+                    suggestion: currentSuggestion
+                })
             });
 
             if (res.ok) {
                 document.getElementById('saved-msg').style.display = 'block';
-                saveBtn.style.display = 'none';
+                setTimeout(() => {
+                    document.getElementById('saved-msg').style.display = 'none';
+                    saveBtn.disabled = false;
+                    saveBtn.innerText = '📸 Save as Memory';
+                }, 2500);
             }
         } catch (err) {
             saveBtn.disabled = false;
-            saveBtn.innerText = '💾 Save to History';
-            console.error(err);
+            saveBtn.innerText = '📸 Save as Memory';
         }
     }
 
-    function retake() {
-        capturedImageData = null;
-        currentMood = null;
-        currentSuggestion = null;
-
-        document.getElementById('preview-img').style.display = 'none';
-        video.style.display = 'block';
-        document.getElementById('scan-overlay').style.display = 'block';
-        document.getElementById('scan-overlay').classList.remove('scanning');
-
-        document.getElementById('btn-capture').style.display = 'inline-block';
-        document.getElementById('btn-retake').style.display = 'none';
-
-        document.getElementById('result-card').style.display = 'none';
-        document.getElementById('saved-msg').style.display = 'none';
-        document.getElementById('save-btn').style.display = 'inline-block';
-        document.getElementById('save-btn').disabled = false;
-        document.getElementById('save-btn').innerText = '💾 Save to History';
-
-        document.getElementById('status-text').innerText = 'Camera ready — take a selfie to analyze your mood!';
-    }
-
     function getMoodEmoji(mood) {
-        const emojis = {
-            'Happy': '😊',
-            'Tired': '😴',
-            'Stressed': '😟',
-            'Neutral': '😐',
-            'Sad': '😢',
-            'Energetic': '⚡'
+        const map = {
+            'Happy': '😊', 'Tired': '😴', 'Stressed': '😟',
+            'Neutral': '😐', 'Sad': '😢', 'Energetic': '⚡'
         };
-        return emojis[mood] || '😐';
+        return map[mood] || '😐';
     }
-
-    // Check auth
-    const token = localStorage.getItem('access_token');
-    if (!token) { window.location.href = '/'; }
 
     startCamera();
 </script>
-
 </body>
 </html>
