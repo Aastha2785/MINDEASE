@@ -337,87 +337,99 @@
         }
     }
 
-    function analyzeLandmarks() {
-        if (!lastLandmarks || isAnalyzing) return;
+function analyzeLandmarks() {
+    if (!lastLandmarks || isAnalyzing) return;
 
-        // Eye Aspect Ratio (EAR)
-        const leftEyeTop = lastLandmarks[159];
-        const leftEyeBottom = lastLandmarks[145];
-        const leftEyeLeft = lastLandmarks[33];
-        const leftEyeRight = lastLandmarks[133];
-        const leftEAR = Math.abs(leftEyeTop.y - leftEyeBottom.y) / Math.abs(leftEyeLeft.x - leftEyeRight.x);
+    // Eye Aspect Ratio
+    const leftEyeTop = lastLandmarks[159];
+    const leftEyeBottom = lastLandmarks[145];
+    const leftEyeLeft = lastLandmarks[33];
+    const leftEyeRight = lastLandmarks[133];
+    const leftEAR = Math.abs(leftEyeTop.y - leftEyeBottom.y) / Math.abs(leftEyeLeft.x - leftEyeRight.x);
 
-        const rightEyeTop = lastLandmarks[386];
-        const rightEyeBottom = lastLandmarks[374];
-        const rightEyeLeft = lastLandmarks[362];
-        const rightEyeRight = lastLandmarks[263];
-        const rightEAR = Math.abs(rightEyeTop.y - rightEyeBottom.y) / Math.abs(rightEyeLeft.x - rightEyeRight.x);
+    const rightEyeTop = lastLandmarks[386];
+    const rightEyeBottom = lastLandmarks[374];
+    const rightEyeLeft = lastLandmarks[362];
+    const rightEyeRight = lastLandmarks[263];
+    const rightEAR = Math.abs(rightEyeTop.y - rightEyeBottom.y) / Math.abs(rightEyeLeft.x - rightEyeRight.x);
 
-        const avgEAR = (leftEAR + rightEAR) / 2;
+    const avgEAR = (leftEAR + rightEAR) / 2;
 
-        // Mouth ratio
-        const mouthLeft = lastLandmarks[61];
-        const mouthRight = lastLandmarks[291];
-        const mouthTop = lastLandmarks[0];
-        const mouthBottom = lastLandmarks[17];
-        const mouthWidth = Math.abs(mouthRight.x - mouthLeft.x);
-        const mouthHeight = Math.abs(mouthTop.y - mouthBottom.y);
-        const mouthRatio = mouthHeight / mouthWidth;
+    // Smile detection — mouth corners vs center
+    const mouthLeft = lastLandmarks[61];   // left corner
+    const mouthRight = lastLandmarks[291]; // right corner
+    const mouthCenter = lastLandmarks[13]; // upper lip center
+    const cornerAvgY = (mouthLeft.y + mouthRight.y) / 2;
+    const smileScore = cornerAvgY - mouthCenter.y; 
+    // negative = corners ABOVE center = smile
+    // positive = corners BELOW center = frown
 
-        // Build text description
-        const eyeDesc = avgEAR < 0.15 ? "eyes nearly closed, very tired" :
-                        avgEAR < 0.22 ? "eyes slightly droopy, tired" :
-                        avgEAR < 0.30 ? "eyes normally open, alert" : "eyes wide open, very alert or surprised";
+    // Eyebrow raise — brow vs eye distance
+    const leftBrow = lastLandmarks[70];
+    const leftEyeCenter = lastLandmarks[159];
+    const rightBrow = lastLandmarks[300];
+    const rightEyeCenter = lastLandmarks[386];
+    const browDistance = ((leftEyeCenter.y - leftBrow.y) + (rightEyeCenter.y - rightBrow.y)) / 2;
+    // larger = brows raised higher = stressed/surprised
 
-        const mouthDesc = mouthRatio > 0.15 ? "mouth open" :
-                          mouthRatio > 0.05 ? "slight smile or neutral" : "mouth closed or tight";
+    // Descriptions
+    const eyeDesc = avgEAR < 0.20 ? "eyes nearly closed, very tired" :
+                    avgEAR < 0.28 ? "eyes slightly droopy, tired" :
+                    avgEAR < 0.38 ? "eyes normally open" : "eyes wide open";
 
-        sendToGroq(eyeDesc, mouthDesc, avgEAR, mouthRatio);
-    }
+    const smileDesc = smileScore < -0.01 ? "clearly smiling, mouth corners raised" :
+                      smileScore < 0.005 ? "neutral expression, slight smile" :
+                      "frowning, mouth corners pulled down, sad or stressed";
 
-    async function sendToGroq(eyeDesc, mouthDesc, ear, mouthRatio) {
-        isAnalyzing = true;
-        document.getElementById('live-mood').innerText = '🔍 Analyzing...';
+    const browDesc = browDistance > 0.07 ? "eyebrows raised high, stressed or surprised" :
+                     browDistance > 0.05 ? "eyebrows slightly raised" :
+                     "eyebrows relaxed or furrowed";
 
-        const prompt = `You are a mood detection expert analyzing facial landmark data.
+    sendToGroq(eyeDesc, smileDesc, browDesc, avgEAR, smileScore);
+}
+    async function sendToGroq(eyeDesc, smileDesc, browDesc, ear, smileScore) {
+    isAnalyzing = true;
+    document.getElementById('live-mood').innerText = '🔍 Analyzing...';
 
-Facial data:
+    const prompt = `You are a mood detection expert analyzing facial landmark data.
+
+Facial analysis:
 - Eyes: ${eyeDesc} (EAR: ${ear.toFixed(3)})
-- Mouth: ${mouthDesc} (ratio: ${mouthRatio.toFixed(3)})
+- Mouth/Smile: ${smileDesc} (smile score: ${smileScore.toFixed(4)})
+- Eyebrows: ${browDesc}
 
-Respond EXACTLY in this format only, nothing else:
+Based on ALL three features together, respond EXACTLY like this, nothing else:
 MOOD: [one of: Happy, Tired, Stressed, Neutral, Sad, Energetic]
-SUGGESTION: [one short helpful suggestion, max 12 words]`;
+SUGGESTION: [one helpful suggestion max 12 words]`;
 
-        try {
-            const res = await fetch('/api/selfie-mood', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ image_data: prompt })
-            });
+    try {
+        const res = await fetch('/api/selfie-mood', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ image_data: prompt })
+        });
 
-            const data = await res.json();
-            currentMood = data.detected_mood;
-            currentSuggestion = data.suggestion;
+        const data = await res.json();
+        currentMood = data.detected_mood;
+        currentSuggestion = data.suggestion;
 
-            const emoji = getMoodEmoji(currentMood);
-            document.getElementById('live-mood').innerText = `${emoji} ${currentMood}`;
-            document.getElementById('mood-result').innerHTML = `
-                <div class="mood-badge">${emoji} ${currentMood}</div>
-                <p class="suggestion-text">${currentSuggestion}</p>
-            `;
-            document.getElementById('btn-save').disabled = false;
+        const emoji = getMoodEmoji(currentMood);
+        document.getElementById('live-mood').innerText = `${emoji} ${currentMood}`;
+        document.getElementById('mood-result').innerHTML = `
+            <div class="mood-badge">${emoji} ${currentMood}</div>
+            <p class="suggestion-text">${currentSuggestion}</p>
+        `;
+        document.getElementById('btn-save').disabled = false;
 
-        } catch (err) {
-            document.getElementById('live-mood').innerText = '⚠️ Analysis failed';
-        }
-
-        isAnalyzing = false;
+    } catch (err) {
+        document.getElementById('live-mood').innerText = '⚠️ Analysis failed';
     }
 
+    isAnalyzing = false;
+}
     async function saveMemory() {
         if (!currentMood) return;
 
